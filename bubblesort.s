@@ -9,6 +9,8 @@
 main:	add x2, x0, x0
 		add x3, x0, x0
 		addi x3, x3, 3
+		add s2, x0, x0
+		addi s2, s2, 1
 		la t2, n3
 		lb t6, 0(t2)
 		la t2, n2
@@ -19,23 +21,26 @@ main:	add x2, x0, x0
 		lb t3, 0(t2)
 loop:
 loop1:	
-		BLT t3, t4,loop2
+		SLT x4,t3,t4
+        BEQ x4,s2,loop2
 		add x1, t3, x0
 		add t3, t4, x0
 		add t4, x1, x0		
 loop2:
-		BLT t4, t5,loop3
+		SLT x4,t4,t5
+        BEQ x4,s2,loop3
 		add x1, t4, x0
 		add t4, t5, x0
 		add t5, x1, x0
 loop3:
 		BEQ x2, x3, guardar
 		addi x2, x2, 1
-		BLT t5, t6, loop1
+		SLT x4,t5,t6
+        BEQ x4,s2,loop1
 		add x1, t5, x0
 		add t5, t6, x0
 		add t6, x1, x0
-		j loop1
+		BEQ x0, x0, loop1
 
 #Necesitaremos:
 #Dos registros para llevar la cuenta en bucle
