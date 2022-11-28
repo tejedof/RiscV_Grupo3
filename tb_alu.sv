@@ -1,3 +1,4 @@
+`timescale 1ps/1ns
 module tb_alu();
 //Es un combinacional. Le entraran los dos operandos y el codigo de operacion
 localparam T=20;
