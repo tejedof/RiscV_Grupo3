@@ -1,41 +1,68 @@
 //CLASS
+class tipoR;
+randc logic [31:0] instruccionR;
+
+//CASO 2 DEJAR FIJO TODO MENOS RD 
+constraint caso1 {instruccionR[31:25] == 7'b0100000 && instruccionR[24:20] == 5'b00010 && instruccionR[19:15] == 5'd1 && instruccionR[14:12] == 3'd0 && instruccionR[6:0] == 7'b0110011;}
+
+//CASO 2 DEJAR FIJO TODO MENOS FUNCT3 Y FUNCT 7
+constraint caso2 {instruccionR[31] == 1'd0 && instruccionR[29:25] == 5'd0 && instruccionR[24:20] == 5'd2 && instruccionR[19:15] == 5'd1 && instruccionR[11:7] == 5'd4  && instruccionR[6:0] == 7'b0110011;}
+endclass
+
 `timescale 1n/100ps
 
-//INTERFAZ
-        //CLOCKINGBLOCKS Y MODPORTS ESTAN DENTRO DE LA INTERFAZ?
-    //CLOCKINGBLOCKS
+module tb_top_aleatorizado;
+//DECLARACION DE PARAMETROS
+localparam T=20;
 
-    //MODPORTS
-//ENDINTERFACE
+//DECLARACION DE INPUT
+logic [31:0] instruccion;
+//DECLARACION DE OUTPUT
 
-//CLASS SCOREBOARD
+//COBERTURA
+covergroup InstTypeR;
+    cp1: coverpoint instruccion[11:7];
+endgroup
 
-//TASK MONITOR INPUT
-//TASK MONITOR OUTPUT
-
-//PROGRAM
-
-    //COVERGROUPS
-    //DECLARACION OBJETOS Y COVERGROUPS
-    //INITIAL
-        //CREAMOS LOS OBJETOS
-        //LANZAMOS PROCEDIMIENTO
-
-        //WHILES ACTIVACIONES CONSTRAINTS
-
-//ENDPROGAM
-module tb_top_aleatorizado (
-);
-//DECLARACIONES SEÑALES
-
-//INSTANCIACION INTERFAZ
+//DECLARACION OBJETO Y COVERGROUP
+tipoR tipor_rcsg;
+InstTypeR instyper_cg;
 
 //INSTANCIACION DUV
 
-//LLAMADA A PROGAM
+
 
 //GENERACIOND EL RELOJ
+initial 
+begin 
+CLK = 1'b0;
+forever #(T/2)  CLK = !CLK;
+end
 
 //INITIAL
+initial
+begin
+//Construimos la clase
+tipor_rcsg = new;
+instyper_cg  = new;
+
+while(instyper_cg.cp1.get_coverage()<80)
+begin
+    
+end
+end
+
+//RESET
+//Los cambios son realizados en el flanco de bajada del CLK para aportar
+//mas estabilidad al hardware
+task reset;
+begin
+	@(negedge CLK)
+	RESET_n = 0;
+	repeat(10) @(negedge CLK);
+	RESET_n = 1;
+	
+end
+endtask
 
 endmodule
