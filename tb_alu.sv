@@ -1,4 +1,4 @@
-`timescale 1ps/1ns
+`timescale 1ns/1ps
 module tb_alu();
 //Es un combinacional. Le entraran los dos operandos y el codigo de operacion
 localparam T=20;
@@ -11,9 +11,9 @@ localparam tamanyo=32;
 //logic CLK, RSTa, Start;
 //logic [tamanyo-1:0] Num, Den;
 logic CLK;
-logic [4:0] ALU_operation;
+logic [4:0] ALU_control;
 logic [tamanyo-1:0] A, B;
-logic [tamanyo-1:0] res, res_GM;
+logic [tamanyo-1:0] ALU_result, res_GM;
 logic zero, zero_GM;
 
 
@@ -27,18 +27,18 @@ end
 
 initial
 begin
-   CASO();
+   CASO(3,4,0);
    comprobar();
 
-   CASO();
+   CASO(10,2,5'b00010);
    comprobar();
 
-   CASO();
+   CASO(30,50,5'b01000);
    comprobar();
 
-   CASO();
+   CASO(25,4,5'b11100);
    comprobar();
-    $finish
+$finish;
 end
 
 //TASK
@@ -46,9 +46,9 @@ end
 
 task comprobar;
 begin
-    assert(zero_GM==zero && res == res_GM)
+    assert(zero_GM==zero && ALU_result == res_GM)
     else
-        $error("Ha ocurrido un error. El resultado no es el esperado")
+        $error("Ha ocurrido un error. El resultado no es el esperado");
 end 
 endtask
 
@@ -59,87 +59,28 @@ input [4:0] User_ALU_control;
 begin
     A = User_Operando1;
     B = User_Operando2;
-    ALU_operation = User_ALU_control;
-    #(T)
-    case(User_ALU_control)
-        4'b0001:
-            begin
-                res_GM = A + B;
-                zero_GM = 1'b0;
-            end
-        4'b0010:
-            begin
-                res_GM = A - B;
-                zero_GM = 1'b0;
-            end
-        //OJO QUE ES IGUAL QUE 4'b0001
-        4'b0011:
-            begin
-                res_GM = A + B;
-                zero_GM = 1'b0;
-            end
-        4'b0100:
-            begin
-                res_GM = A & B;
-                zero_GM = 1'b0;
-            end
-        4'b0101: 
-            begin
-                res_GM = A | B;
-                zero_GM = 1'b0;
-            end
-        4'b0110:
-            begin
-                if(A-B < 0)
-                    begin
-                        res_GM = 0;
-                        zero_GM = 1'b1;
-                    end
-                else
-                    begin
-                        res_GM = 0;
-                        zero_GM = 1'b0;
-                    end
-            end
-        4'b0111:
-            begin
-                if(A-B >= 0)
-                    begin
-                        res_GM = 0;
-                        zero_GM = 1'b1;
-                    end
-                else
-                    begin
-                        res_GM = 0;
-                        zero_GM = 1'b0;
-                    end
-            end
-        4'b1000:
-            begin
-                res_GM = A | B;
-                zero_GM = 1'b1;
-            end
-        4'b1001:
-            begin
-                res_GM = A ^ B;
-                zero_GM = 1'b0;
-            end
-        4'b1010:
-            begin
-                if(A-B == 0)
-                    begin
-                        res_GM = 0;
-                        zero_GM = 1'b1;
-                    end
-                else
-                    begin
-                        res_GM = 0;
-                        zero_GM = 1'b0;
-                    end
-            end
+    ALU_control = User_ALU_control;
+    #(T);
+     
+ 
+    case(ALU_control)
+      		5'b00000: res_GM = A + B; 
+		5'b00010: res_GM = A - B;
+		5'b00100: res_GM = A<<B;
+		5'b01000: res_GM = (A<B)? 32'b1 : 32'b0; //5'b01xxx  BLT 
+		5'b01100: res_GM = (A<B)? 32'b0 : 32'b1; //5'b01xxx BLTU 
+		5'b10000: res_GM = A ^ B;
+		5'b10100: res_GM = A>>B; //5'b101xx
+		5'b10110: res_GM = A>>B; //5'b101xx
+		5'b11000: res_GM = A | B; 
+		5'b11010: res_GM = (A>=B)? 32'b0 : 32'b1; //5'b11x10 BGE
+		5'b11100: res_GM = A & B;
+		5'b11110: res_GM = (A>=B)? 32'b0 : 32'b1;//5'b11x10
+		5'b11111: res_GM = A + B; 
+    		default:  res_GM = 0; 
     endcase
-end
-endtask
 
-    
+    assign zero_GM = (res_GM==32'b0) ? 1'b1: 1'b0;
+    end
+endtask   
 endmodule

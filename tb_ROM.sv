@@ -1,13 +1,18 @@
-`timescale 1ps/1ns
+`timescale 1ns/1ps
 module tb_ROM ();
-localparam DATA_WIDTH=32; 
-localparam ADDR_WIDTH=1024;
+localparam size=32; 
+localparam mem_depth=1024;
 localparam T = 20;
 
-logic [(ADDR_WIDTH-1):0] addr;
-logic [(DATA_WIDTH-1):0] q;
+logic CLK;
 
-ROM duv(.*);
+logic [($clog2(mem_depth)-1):0] addr;
+logic [(size-1):0] q;
+
+logic [($clog2(mem_depth)-1):0] addr_GM;
+logic [(size-1):0] q_GM;
+
+IMEM duv(.*);
 
 
 initial begin CLK = 1'b0;
@@ -17,26 +22,47 @@ end
 
 initial
 begin
-    #(2*T)
-    AddressIn();
+    @(posedge CLK)
+    AddressIn(4);
+
+    @(posedge CLK)
     comprobar();
 
+  	@(posedge CLK)
+    AddressIn(10);
+
+    @(posedge CLK)
+    comprobar();
     $finish;
 end
 
-
+//INICIO DE LAS TASK
 task AddressIn;
-input [(ADDR_WIDTH-1):0] address_user;
+input [(mem_depth-1):0] address_user;
 	begin 
 		addr = address_user;
+		addr_GM = address_user;
 	end
 endtask
 
 task comprobar;
-input [4:0] q_GM;
 	begin
 		assert(q == q_GM) 
         else $error("La salida no es la que debería.");	
 	end
 endtask
+//FIN DE LAS TASK
+
+//GOLDEN MODEL 
+logic [1023:0] rom[31:0];
+
+initial
+begin
+	$readmemh("fibonacci.hex", rom);
+end
+
+assign q_GM = rom[addr_GM];
+//FIN DEL GOLDEN MODEL
+
+
 endmodule

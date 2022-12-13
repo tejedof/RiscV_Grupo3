@@ -1,24 +1,23 @@
-#Cargamos la lista
-.data
-	n0: .byte 6
-	n1: .byte 9
-	n2: .byte 3
-	n3: .byte 1
 
 .text
+cargar_datos:
+		addi x1, x0, 6
+        sw x1, 0(x0)
+        addi x1, x0, 9
+        sw x1, 4(x0)
+        addi x1, x0, 3
+        sw x1, 8(x0)
+        addi x1, x0, 1
+        sw x1, 12(x0)
 main:	add x2, x0, x0
 		add x3, x0, x0
 		addi x3, x3, 3
 		add s2, x0, x0
 		addi s2, s2, 1
-		la t2, n3
-		lb t6, 0(t2)
-		la t2, n2
-		lb t5, 0(t2)
-		la t2, n1
-		lb t4, 0(t2)
-		la t2, n0
-		lb t3, 0(t2)
+		lw t6, 0(x0)
+		lw t5, 4(x0)
+		lw t4, 8(x0)
+		lw t3, 12(x0)
 loop:
 loop1:	
 		SLT x4,t3,t4
@@ -48,14 +47,10 @@ loop3:
 
 #Bucle for 1
 guardar:
-		la t2, n3
-		sb  0(t2), t6
-		la t2, n2
-		sb 0(t2),t5
-		la t2, n1
-		sb 0(t2),t4
-		la t2, n0
-		sb 0(t2),t3
+		sw t6, 12(x0)
+		sw t5, 8(x0)
+		sw t4, 4(x0)
+		sw t3, 0(x0)
 		
 #Bucle for 2
 
