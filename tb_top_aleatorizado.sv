@@ -22,6 +22,7 @@ logic [31:0] instruccion;
 //COBERTURA
 covergroup InstTypeR;
     cp1: coverpoint instruccion[11:7];
+	cp2: coverpoint instruccion[30] && instruccion[14:12];
 endgroup
 
 //DECLARACION OBJETO Y COVERGROUP
@@ -46,9 +47,18 @@ begin
 tipor_rcsg = new;
 instyper_cg  = new;
 
+//WHILE CASO 1
 while(instyper_cg.cp1.get_coverage()<80)
 begin
-    
+    tipor_rcsg.caso1.constraint_mode(1);
+    tipor_rcsg.caso2.constraint_mode(0);
+end
+
+//WHILE CASO 2
+while(instyper_cg.cp2.get_coverage()<80)
+begin
+    tipor_rcsg.caso1.constraint_mode(0);
+    tipor_rcsg.caso2.constraint_mode(1);
 end
 end
 
