@@ -2,7 +2,7 @@
 class tipoR;
 randc logic [31:0] instruccionR;
 
-//CASO 2 DEJAR FIJO TODO MENOS RD 
+//CASO 1 DEJAR FIJO TODO MENOS RD 
 constraint caso1 {instruccionR[31:25] == 7'b0100000 && instruccionR[24:20] == 5'b00010 && instruccionR[19:15] == 5'd1 && instruccionR[14:12] == 3'd0 && instruccionR[6:0] == 7'b0110011;}
 
 //CASO 2 DEJAR FIJO TODO MENOS FUNCT3 Y FUNCT 7
@@ -47,18 +47,34 @@ begin
 tipor_rcsg = new;
 instyper_cg  = new;
 
+$display("Iniciamos la aleatorización de instrucciones tipo R");
 //WHILE CASO 1
 while(instyper_cg.cp1.get_coverage()<80)
 begin
+	$display("Dejamos toda la instrucción dija menos el campo RD");
     tipor_rcsg.caso1.constraint_mode(1);
     tipor_rcsg.caso2.constraint_mode(0);
+
+	//ALEATORIZACIÓN
+	assert(tipor_rcsg.randomize()) else $fatal("Ha fallado la aleatorización");
+	instruccion = tipor_rcsg.instruccion;
+
+	instyper_cg.sample();
+
 end
 
 //WHILE CASO 2
 while(instyper_cg.cp2.get_coverage()<80)
 begin
+	$display("Dejamos toda la instrucción fija menos los campos FUNCT3 Y FUNCT 7");
     tipor_rcsg.caso1.constraint_mode(0);
     tipor_rcsg.caso2.constraint_mode(1);
+
+	//ALEATORIZACIÓN
+	assert(tipor_rcsg.randomize()) else $fatal("Ha fallado la aleatorización");
+	instruccion = tipor_rcsg.instruccion;
+
+	instyper_cg.sample();
 end
 end
 
