@@ -195,6 +195,7 @@ ALU ALU
 
 // Mux_write_data
 assign write_data = MemtoReg_reg3? ddata_r_reg : ALU_result_reg2;
+// Añadir opción  para  PC+4 cuando tengamos JAL/JALR
 
 
 // Asignación de las salidas
@@ -323,12 +324,48 @@ always_ff @(posedge CLK, negedge RESET_N)
 		end
 
 // Registros con enable y clear (reset síncrono)
+// Incluir las instrucciones SLLI, SRLI, SRAI, SLL, SRL, SRA, JAL, JALR, BLT, BLTU, BGE, BGEU.
 
-// Bypass del banco de registros
-// always_comb
-// 	if(add r1 == addwr)&wren
-// 		r1 = datowr
-// 	else
-// 		r1 = reg[addr1]
+
+// DATA  FORWARDING
+// Forwarding unit
+always_comb
+	if(EX/MEM.RegisterRd == ID/EX.RegisterRs1)or(EX/MEM.RegisterRd = ID/EX.RegisterRs2)
+
+	else
+
+	if
+
+	else
+
+
+// Mux forward A
+always_comb
+	case(ForwardA)
+		2'b00: 
+		2'b01: 
+		2'b10: 
+		default:
+	endcase
+
+// Mux forward B
+always_comb
+	case(ForwardB)
+		2'b00: 
+		2'b01: 
+		2'b10: 
+		default:
+	endcase
+
+
+// RIESGO DE DATOS POR CARGA
+// Añadimos una NOP si detectamos el riesgo:
+// Hazard detection unit detecta el riesgo
+// Señales de control a 0 durante un ciclo de reloj
+// Congelamos el PC (enable = 0) durante un ciclo de reloj
+// Limpiamos los registros de control (clear = 1)
+
+
+//
 
 endmodule
