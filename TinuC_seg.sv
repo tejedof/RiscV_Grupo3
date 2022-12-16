@@ -325,6 +325,10 @@ always_ff @(posedge CLK, negedge RESET_N)
 // Registros con enable y clear (reset síncrono)
 
 // Bypass del banco de registros
-
+// always_comb
+// 	if(add r1 == addwr)&wren
+// 		r1 = datowr
+// 	else
+// 		r1 = reg[addr1]
 
 endmodule
