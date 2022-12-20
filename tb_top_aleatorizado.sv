@@ -29,8 +29,13 @@ endgroup
 tipoR tipor_rcsg;
 InstTypeR instyper_cg;
 
-//INSTANCIACION DUV
-
+////INSTANCIACION DUV///////////////////
+//
+//
+//
+//
+//
+////FIN DE LA INSTANCIACIÓN DEL DUV////
 
 
 //GENERACIOND EL RELOJ
@@ -49,7 +54,7 @@ instyper_cg  = new;
 
 $display("Iniciamos la aleatorización de instrucciones tipo R");
 //WHILE CASO 1
-while(instyper_cg.cp1.get_coverage()<80)
+while(instyper_cg.cp1.get_coverage()<100)
 begin
 	$display("Dejamos toda la instrucción dija menos el campo RD");
     tipor_rcsg.caso1.constraint_mode(1);
@@ -59,12 +64,12 @@ begin
 	assert(tipor_rcsg.randomize()) else $fatal("Ha fallado la aleatorización");
 	instruccion = tipor_rcsg.instruccion;
 
-	instyper_cg.sample();
+	instyper_cg.cp1.sample();
 
 end
 
 //WHILE CASO 2
-while(instyper_cg.cp2.get_coverage()<80)
+while(instyper_cg.cp2.get_coverage()<100)
 begin
 	$display("Dejamos toda la instrucción fija menos los campos FUNCT3 Y FUNCT 7");
     tipor_rcsg.caso1.constraint_mode(0);
@@ -74,7 +79,7 @@ begin
 	assert(tipor_rcsg.randomize()) else $fatal("Ha fallado la aleatorización");
 	instruccion = tipor_rcsg.instruccion;
 
-	instyper_cg.sample();
+	instyper_cg.cp2.sample();
 end
 end
 
