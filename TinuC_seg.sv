@@ -207,24 +207,24 @@ assign daddr = MEM_ALU_result;
 
 // SEGMENTACIÓN
 //Banco 1 IF/ID
-logic [31:0] ID_pc, ID_instruction // Salida del PC y de las Instrucciones.
+logic [31:0] ID_PC, ID_instruction // Salida del PC y de las Instrucciones.
 
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
 		begin
-		ID_pc <= '0;
+		ID_PC <= '0;
 		ID_instruction <= '0;
 		end
 	else
 		begin
-		ID_pc <= PC; 
+		ID_PC <= PC; 
 		ID_instruction <= idata;
 		end
 
 
 //Banco 2 ID/EX
 logic [31:0] EX_read_data1, EX_read_data2, EX_ImmGen;
-logic [9:0] EX_pc;
+logic [9:0] EX_PC;
 logic [4:0] EX_rd;
 logic [3:0] EX_AluOP;
 logic [2:0] EX_funct3, EX_AuipcLui;
@@ -233,7 +233,7 @@ logic EX_i30, EX_AluSrc, EX_Branch, EX_MemWrite, EX_MemRead, EX_MemtoReg, EX_Reg
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
 		begin
-		EX_pc <= '0; 
+		EX_PC <= '0; 
 		EX_read_data1 <= '0;
 		EX_read_data2 <= '0;
 		EX_ImmGen <= '0;
@@ -251,7 +251,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 		end
 	else
 		begin
-		EX_pc <= ID_pc; 
+		EX_PC <= ID_PC; 
 		EX_read_data1 <= read_data1;
 		EX_read_data2 <= read_data2;
 		EX_ImmGen <= ImmGen;
@@ -330,6 +330,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 // Incluir las instrucciones SLLI, SRLI, SRAI, SLL, SRL, SRA, JAL, JALR, BLT, BLTU, BGE, BGEU.
 
 
+
 /* 
 PREGUNTAS
 - Implementación del clear
@@ -339,44 +340,52 @@ PREGUNTAS
 
  */
 
-// // CONTROL DE RIESGOS
-// // DATA  FORWARDING
-// // Forwarding unit
-// always_comb
-// 	if(EX/MEM.RegisterRd == ID/EX.RegisterRs1)or(EX/MEM.RegisterRd = ID/EX.RegisterRs2)
+// CONTROL DE RIESGOS
+// DATA  FORWARDING
+// Forwarding unit
+always_comb	// Forward A
+	if(MEM_RegWrite and (MEM_rd != 0) and MEM_rd == EX_read_data1)
+		ForwardA = 2'b10;
+	else if(WB_RegWrite and (WB_rd != 0) and WB_rd == EX_read_data1)
+		ForwardA = 2'b01;
+	else
+		ForwardA = 2'b00;
 
-// 	else
+always_comb	// Forward B
+	if(MEM_RegWrite and (MEM_rd != 0) and MEM_rd == EX_read_data2)
+		ForwardB = 2'b10;
+	else if(WB_RegWrite and (WB_rd != 0) and WB_rd == EX_read_data2)
+		ForwardB = 2'b01;
+	else
+		ForwardB = 2'b00;
 
-// 	if
+// Mux forward A
+logic [31:0] fw_A;
+always_comb
+	case(ForwardA)
+		2'b00: fw_A = EX_read_data1;
+		2'b01: fw_A = write_data;
+		2'b10: fw_A = MEM_ALU_result
+		default: fw_A = '0;
+	endcase
 
-// 	else
-
-
-// // Mux forward A
-// always_comb
-// 	case(ForwardA)
-// 		2'b00: 
-// 		2'b01: 
-// 		2'b10: 
-// 		default:
-// 	endcase
-
-// // Mux forward B
-// always_comb
-// 	case(ForwardB)
-// 		2'b00: 
-// 		2'b01: 
-// 		2'b10: 
-// 		default:
-// 	endcase
+// Mux forward B
+logic [31:0] fw_A;
+always_comb
+	case(ForwardB)
+		2'b00: fw_B = EX_read_data2;
+		2'b01: fw_B = write_data;
+		2'b10: fw_B = MEM_ALU_result;
+		default: fw_B = '0;
+	endcase
 
 
-// // RIESGO DE DATOS POR CARGA
-// // Añadimos una NOP si detectamos el riesgo:
-// // Hazard detection unit detecta el riesgo
-// // Señales de control a 0 durante un ciclo de reloj
-// // Congelamos el PC (enable = 0) durante un ciclo de reloj
-// // Limpiamos los registros de control (clear = 1)
+// RIESGO DE DATOS POR CARGA
+// Añadimos una NOP si detectamos el riesgo:
+// Hazard detection unit detecta el riesgo
+// Señales de control a 0 durante un ciclo de reloj
+// Congelamos el PC (enable = 0) durante un ciclo de reloj
+// Limpiamos los registros de control (clear = 1)
 
 
 endmodule
