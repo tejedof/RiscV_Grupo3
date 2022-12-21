@@ -5,7 +5,7 @@ input CLK, RESET_N,				// Reloj y reset asíncrono
 input [31:0] idata, ddata_r,	// Bus de datos de lectura ROM y RAM
 output [31:0] ddata_w,			// Bus de datos de escritura RAM
 output [9:0] iaddr, daddr,		// Bus de direcciones ROM y RAM
-output d_rw							// Enable escritura RAM
+output d_rw						// Enable escritura RAM
 );
 
 

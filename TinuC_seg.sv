@@ -5,7 +5,7 @@ input CLK, RESET_N,				// Reloj y reset asíncrono
 input [31:0] idata, ddata_r,	// Bus de datos de lectura ROM y RAM
 output [31:0] ddata_w,			// Bus de datos de escritura RAM
 output [9:0] iaddr, daddr,		// Bus de direcciones ROM y RAM
-output d_rw							// Enable escritura RAM
+output d_rw						// Enable escritura RAM
 );
 
 
@@ -326,9 +326,9 @@ always_ff @(posedge CLK, negedge RESET_N)
 		WB_rd <= MEM_rd;
 		end
 
+
 // Registros con enable y clear (reset síncrono)
 // Incluir las instrucciones SLLI, SRLI, SRAI, SLL, SRL, SRA, JAL, JALR, BLT, BLTU, BGE, BGEU.
-
 
 
 /* 
@@ -336,56 +336,7 @@ PREGUNTAS
 - Implementación del clear
 - MUX del JAL/JALR
 - Instrucciones signed y unsigned
-
-
  */
-
-// CONTROL DE RIESGOS
-// DATA  FORWARDING
-// Forwarding unit
-always_comb	// Forward A
-	if(MEM_RegWrite and (MEM_rd != 0) and MEM_rd == EX_read_data1)
-		ForwardA = 2'b10;
-	else if(WB_RegWrite and (WB_rd != 0) and WB_rd == EX_read_data1)
-		ForwardA = 2'b01;
-	else
-		ForwardA = 2'b00;
-
-always_comb	// Forward B
-	if(MEM_RegWrite and (MEM_rd != 0) and MEM_rd == EX_read_data2)
-		ForwardB = 2'b10;
-	else if(WB_RegWrite and (WB_rd != 0) and WB_rd == EX_read_data2)
-		ForwardB = 2'b01;
-	else
-		ForwardB = 2'b00;
-
-// Mux forward A
-logic [31:0] fw_A;
-always_comb
-	case(ForwardA)
-		2'b00: fw_A = EX_read_data1;
-		2'b01: fw_A = write_data;
-		2'b10: fw_A = MEM_ALU_result
-		default: fw_A = '0;
-	endcase
-
-// Mux forward B
-logic [31:0] fw_A;
-always_comb
-	case(ForwardB)
-		2'b00: fw_B = EX_read_data2;
-		2'b01: fw_B = write_data;
-		2'b10: fw_B = MEM_ALU_result;
-		default: fw_B = '0;
-	endcase
-
-
-// RIESGO DE DATOS POR CARGA
-// Añadimos una NOP si detectamos el riesgo:
-// Hazard detection unit detecta el riesgo
-// Señales de control a 0 durante un ciclo de reloj
-// Congelamos el PC (enable = 0) durante un ciclo de reloj
-// Limpiamos los registros de control (clear = 1)
 
 
 endmodule
