@@ -51,7 +51,7 @@ Registers Registers
 	.reset_n(RESET_N),
 	.read_reg1(ID_instruction[19:15]),
 	.read_reg2(ID_instruction[24:20]),
-	.write_reg(ID_instruction[11:7]), // Tenemos que retrasar también esta señal (ver transparencia 30 de implementación pipelined)
+	.write_reg(WB_rd), // Tenemos que retrasar también esta señal (ver transparencia 30 de implementación pipelined)
 	.read_data1(read_data1),
 	.read_data2(read_data2)
 );
@@ -305,6 +305,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 
 //Banco 4 MEM/WB
 logic [31:0] WB_ddata_r, WB_ALU_result;
+logic [4:0] WB_rd;
 logic WB_MemtoReg, WB_RegWrite;
 
 always_ff @(posedge CLK, negedge RESET_N)
@@ -314,6 +315,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 		WB_ddata_r <= '0;
 		WB_ALU_result <= '0;
 		WB_RegWrite <= '0;
+		WB_rd <= '0;
 		end
 	else
 		begin
@@ -321,6 +323,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 		WB_ddata_r <= ddata_r;
 		WB_ALU_result <= MEM_ALU_result;
 		WB_RegWrite <= MEM_RegWrite;
+		WB_rd <= MEM_rd;
 		end
 
 // Registros con enable y clear (reset síncrono)
