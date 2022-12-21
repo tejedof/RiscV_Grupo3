@@ -19,9 +19,9 @@ logic Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite, PCSrc, zero;
 
 // PC
 assign Add = PC + 4;
-assign Sum = PC_reg2 + ImmGen_reg; 
-assign PCSrc = Branch_reg2 && zero_reg;
-assign next_PC = PCSrc? Sum_reg : Add;
+assign Sum = EX_PC + EX_ImmGen; 
+assign PCSrc = MEM_Branch && MEM_zero;
+assign next_PC = PCSrc? MEM_Sum : Add;
 
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
@@ -32,12 +32,12 @@ always_ff @(posedge CLK, negedge RESET_N)
 
 // Generador de inmediato
 always_comb
-	casex(instruction_reg[6:0]) // Opcode
-		7'b0010011: ImmGen = {{21{instruction_reg[31]}},instruction_reg[30:25],instruction_reg[24:21], instruction_reg[20]};		// I-type
-		7'b0100011:	ImmGen = {{21{instruction_reg[31]}},instruction_reg[30:25],instruction_reg[11:8],instruction_reg[7]};			// S-type
-		7'b1100011:	ImmGen = {{20{instruction_reg[31]}},instruction_reg[7],instruction_reg[30:25], instruction_reg[11:8],1'b0};	// B-type
-		7'b0X10111: ImmGen = {instruction_reg[31:12],12'b0};													// U-type
-		7'b110X111: ImmGen = {{12{instruction_reg[31]}},instruction_reg[19:12],instruction_reg[20],instruction_reg[30:21],1'b0};	// J-type
+	casex(ID_instruction[6:0]) // Opcode
+		7'b0010011: ImmGen = {{21{ID_instruction[31]}},ID_instruction[30:25],ID_instruction[24:21], ID_instruction[20]};		// I-type
+		7'b0100011:	ImmGen = {{21{ID_instruction[31]}},ID_instruction[30:25],ID_instruction[11:8],ID_instruction[7]};			// S-type
+		7'b1100011:	ImmGen = {{20{ID_instruction[31]}},ID_instruction[7],ID_instruction[30:25], ID_instruction[11:8],1'b0};	// B-type
+		7'b0X10111: ImmGen = {ID_instruction[31:12],12'b0};													// U-type
+		7'b110X111: ImmGen = {{12{ID_instruction[31]}},ID_instruction[19:12],ID_instruction[20],ID_instruction[30:21],1'b0};	// J-type
 		default: ImmGen = 32'b0;
 	endcase
 
@@ -46,12 +46,12 @@ always_comb
 Registers Registers 
 (
 	.write_data(write_data),
-	.wren(RegWrite_reg3),
+	.wren(WB_RegWrite),
 	.clock(CLK),
 	.reset_n(RESET_N),
-	.read_reg1(instruction_reg[19:15]),
-	.read_reg2(instruction_reg[24:20]),
-	.write_reg(instruction_reg[11:7]), // Tenemos que retrasar también esta señal (ver transparencia 30 de implementación pipelined)
+	.read_reg1(ID_instruction[19:15]),
+	.read_reg2(ID_instruction[24:20]),
+	.write_reg(ID_instruction[11:7]), // Tenemos que retrasar también esta señal (ver transparencia 30 de implementación pipelined)
 	.read_data1(read_data1),
 	.read_data2(read_data2)
 );
@@ -59,7 +59,7 @@ Registers Registers
 
 // Control
 always_comb
-	case(instruction_reg[6:0]) // Opcode
+	case(ID_instruction[6:0]) // Opcode
 		7'b0110011:	begin   // R-type (registro)
 						Branch = 1'b0;		// Salto
 						MemRead = 1'b0;	// Enable lectura RAM (no se utiliza por el momento)
@@ -145,7 +145,7 @@ always_comb
 
 // ALU control
 always_comb 
-	casex({i30_reg[30],funct3_reg[14:12],AluOP_reg})                  
+	casex({EX_i30[30],EX_funct3[14:12],EX_AluOP})                  
 		8'bX0000010: 	ALU_control = 5'b00000;	// ADDI
 		8'bX0100010: 	ALU_control = 5'b01000;	// SLTI
 		8'bX0110010: 	ALU_control = 5'b01100;	// SLTIU
@@ -171,15 +171,15 @@ always_comb
 
 // Mux_A
 always_comb
-	case(AuipcLui_reg)
-		2'b00:	A = PC_reg2;
+	case(EX_AuipcLui)
+		2'b00:	A = EX_PC;
 		2'b01:	A = 0;
-		default:	A = read_data1_reg;
+		default:	A = EX_read_data1;
 	endcase
 
 
 // Mux_B
-assign B = AluSrc_reg? ImmGen_reg : read_data2_reg;
+assign B = EX_AluSrc? EX_ImmGen : EX_read_data2;
 
 
 // ALU
@@ -194,178 +194,186 @@ ALU ALU
 
 
 // Mux_write_data
-assign write_data = MemtoReg_reg3? ddata_r_reg : ALU_result_reg2;
+assign write_data = WB_MemtoReg? WB_ddata_r : WB_ALU_result;
 // Añadir opción  para  PC+4 cuando tengamos JAL/JALR
 
 
 // Asignación de las salidas
 assign iaddr = PC[11:2];
-assign d_rw = MemWrite_reg2;
-assign ddata_w = read_data2_reg2;
-assign daddr = ALU_result_reg;
+assign d_rw = MEM_MemWrite;
+assign ddata_w = MEM_read_data2;
+assign daddr = MEM_ALU_result;
 
 
 // SEGMENTACIÓN
 //Banco 1 IF/ID
-logic [31:0] pc_reg, instruction_reg // Salida del PC y de las Instrucciones.
+logic [31:0] ID_pc, ID_instruction // Salida del PC y de las Instrucciones.
 
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
 		begin
-		pc_reg <= '0;
-		instruction_reg <= '0;
+		ID_pc <= '0;
+		ID_instruction <= '0;
 		end
 	else
 		begin
-			pc_reg <= PC; 
-			instruction_reg <= idata;
+		ID_pc <= PC; 
+		ID_instruction <= idata;
 		end
 
 
 //Banco 2 ID/EX
-logic [31:0] read_data1_reg, read_data2_reg, ImmGen_reg;
-logic [9:0] pc_reg2;
-logic [4:0] rd_reg;
-logic [3:0] AluOP_reg;
-logic [2:0] funct3_reg, AuipcLui_reg;
-logic i30_reg, AluSrc_reg, Branch_reg, MemWrite_reg, MemRead_reg, MemtoReg_reg, RegWrite_reg;
+logic [31:0] EX_read_data1, EX_read_data2, EX_ImmGen;
+logic [9:0] EX_pc;
+logic [4:0] EX_rd;
+logic [3:0] EX_AluOP;
+logic [2:0] EX_funct3, EX_AuipcLui;
+logic EX_i30, EX_AluSrc, EX_Branch, EX_MemWrite, EX_MemRead, EX_MemtoReg, EX_RegWrite;
 
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
 		begin
-		pc_reg2 <= '0; 
-		read_data1_reg <= '0;
-		read_data2_reg <= '0;
-		ImmGen_reg <= '0;
-		i30_reg <= '0;
-		funct3_reg <= '0;
-		rd_reg <= '0;
-		AluOP_reg <= '0;
-		AluSrc_reg <= '0;
-		Branch_reg <= '0;
-		MemWrite_reg <= '0;
-		MemRead_reg <= '0;
-		AuipcLui_reg <= '0;
-		MemtoReg_reg <= '0;
-		RegWrite_reg <= '0;
+		EX_pc <= '0; 
+		EX_read_data1 <= '0;
+		EX_read_data2 <= '0;
+		EX_ImmGen <= '0;
+		EX_i30 <= '0;
+		EX_funct3 <= '0;
+		EX_rd <= '0;
+		EX_AluOP <= '0;
+		EX_AluSrc <= '0;
+		EX_Branch <= '0;
+		EX_MemWrite <= '0;
+		EX_MemRead <= '0;
+		EX_AuipcLui <= '0;
+		EX_MemtoReg <= '0;
+		EX_RegWrite <= '0;
 		end
 	else
 		begin
-		pc_reg2 <= pc_reg1; 
-		read_data1_reg <= read_data1;
-		read_data2_reg <= read_data2;
-		ImmGen_reg <= ImmGen;
-		i30_reg <= instruction_reg[30];
-		funct3_reg <= instruction_reg[14:12];
-		rd_reg <= instruction_reg[11:7];
-		AluOP_reg <= ALUOp;
-		AluSrc_reg <=  ALUSrc;
-		Branch_reg <= Branch;
-		MemWrite_reg <= MemWrite;
-		MemRead_reg <= MemRead;
-		AuipcLui_reg <= AuipcLui;
-		MemtoReg_reg <= MemtoReg;
-		RegWrite_reg <= RegWrite;
+		EX_pc <= ID_pc1; 
+		EX_read_data1 <= read_data1;
+		EX_read_data2 <= read_data2;
+		EX_ImmGen <= ImmGen;
+		EX_i30 <= ID_instruction[30];
+		EX_funct3 <= ID_instruction[14:12];
+		EX_rd <= ID_instruction[11:7];
+		EX_AluOP <= ALUOp;
+		EX_AluSrc <=  ALUSrc;
+		EX_Branch <= Branch;
+		EX_MemWrite <= MemWrite;
+		EX_MemRead <= MemRead;
+		EX_AuipcLui <= AuipcLui;
+		EX_MemtoReg <= MemtoReg;
+		EX_RegWrite <= RegWrite;
 		end
 
 
 //Banco 3 EX/MEM
-logic [31:0] Sum_reg, ALU_result_reg, read_data2_reg2;
-logic [4:0] rd_reg2;
-logic zero_reg, Branch_reg2, MemWrite_reg2, MemRead_reg2, MemtoReg_reg2, RegWrite_reg2;
+logic [31:0] MEM_Sum, MEM_ALU_result, MEM_read_data2;
+logic [4:0] MEM_rd;
+logic MEM_zero, MEM_Branch, MEM_MemWrite, MEM_MemRead, MEM_MemtoReg, MEM_RegWrite;
 
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
 		begin
-		Sum_reg <= '0;
-		zero_reg <= '0;
-		ALU_result_reg <= '0;
-		read_data2_reg2 <= '0;
-		rd_reg2 <= '0;
-		Branch_reg2 <= '0
-		MemWrite_reg2 <= '0;
-		MemRead_reg2 <= '0;
-		MemtoReg_reg2 <= '0;
-		RegWrite_reg2 <= '0;
+		MEM_Sum <= '0;
+		MEM_zero <= '0;
+		MEM_ALU_result <= '0;
+		MEM_read_data2 <= '0;
+		MEM_rd <= '0;
+		MEM_Branch <= '0
+		MEM_MemWrite <= '0;
+		MEM_MemRead <= '0;
+		MEM_MemtoReg <= '0;
+		MEM_RegWrite <= '0;
 		end
 	else
 		begin
-		Sum_reg <= Sum;
-		zero_reg <= zero;
-		ALU_result_reg <= ALU_result;
-		read_data2_reg2 <= read_data2_reg;
-		rd_reg2 <= rd_reg;
-		Branch_reg2 <= Branch_reg
-		MemWrite_reg2 <= MemWrite_reg;
-		MemRead_reg2 <= MemRead_reg;
-		MemtoReg_reg2 <= MemtoReg_reg;
-		RegWrite_reg2 <= RegWrite_reg;
+		MEM_Sum <= Sum;
+		MEM_zero <= zero;
+		MEM_ALU_result <= ALU_result;
+		MEM_read_data2 <= EX_read_data2;
+		MEM_rd <= EX_rd;
+		MEM_Branch <= EX_Branch
+		MEM_MemWrite <= EX_MemWrite;
+		MEM_MemRead <= EX_MemRead;
+		MEM_MemtoReg <= EX_MemtoReg;
+		MEM_RegWrite <= EX_RegWrite;
 		end
 
 
 //Banco 4 MEM/WB
-logic [31:0] ddata_r_reg, ALU_result_reg2;
-logic MemtoReg_reg3, RegWrite_reg3;
+logic [31:0] WB_ddata_r, WB_ALU_result;
+logic WB_MemtoReg, WB_RegWrite;
 
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
 		begin
-		MemtoReg_reg3 <= '0;
-		ddata_r_reg <= '0;
-		ALU_result_reg2 <= '0;
-		RegWrite_reg3 <= '0;
+		WB_MemtoReg <= '0;
+		WB_ddata_r <= '0;
+		WB_ALU_result <= '0;
+		WB_RegWrite <= '0;
 		end
 	else
 		begin
-		MemtoReg_reg3 <= MemtoReg_reg2;
-		ddata_r_reg <= ddata_r;
-		ALU_result_reg2 <= ALU_result_reg;
-		RegWrite_reg3 <= RegWrite_reg2;
+		WB_MemtoReg <= MEM_MemtoReg;
+		WB_ddata_r <= ddata_r;
+		WB_ALU_result <= MEM_ALU_result;
+		WB_RegWrite <= MEM_RegWrite;
 		end
 
 // Registros con enable y clear (reset síncrono)
 // Incluir las instrucciones SLLI, SRLI, SRAI, SLL, SRL, SRA, JAL, JALR, BLT, BLTU, BGE, BGEU.
 
 
-// DATA  FORWARDING
-// Forwarding unit
-always_comb
-	if(EX/MEM.RegisterRd == ID/EX.RegisterRs1)or(EX/MEM.RegisterRd = ID/EX.RegisterRs2)
-
-	else
-
-	if
-
-	else
+/* 
+PREGUNTAS
+- Implementación del clear
+- MUX del JAL/JALR
+- Instrucciones signed y unsigned
 
 
-// Mux forward A
-always_comb
-	case(ForwardA)
-		2'b00: 
-		2'b01: 
-		2'b10: 
-		default:
-	endcase
+ */
 
-// Mux forward B
-always_comb
-	case(ForwardB)
-		2'b00: 
-		2'b01: 
-		2'b10: 
-		default:
-	endcase
+// // CONTROL DE RIESGOS
+// // DATA  FORWARDING
+// // Forwarding unit
+// always_comb
+// 	if(EX/MEM.RegisterRd == ID/EX.RegisterRs1)or(EX/MEM.RegisterRd = ID/EX.RegisterRs2)
+
+// 	else
+
+// 	if
+
+// 	else
 
 
-// RIESGO DE DATOS POR CARGA
-// Añadimos una NOP si detectamos el riesgo:
-// Hazard detection unit detecta el riesgo
-// Señales de control a 0 durante un ciclo de reloj
-// Congelamos el PC (enable = 0) durante un ciclo de reloj
-// Limpiamos los registros de control (clear = 1)
+// // Mux forward A
+// always_comb
+// 	case(ForwardA)
+// 		2'b00: 
+// 		2'b01: 
+// 		2'b10: 
+// 		default:
+// 	endcase
+
+// // Mux forward B
+// always_comb
+// 	case(ForwardB)
+// 		2'b00: 
+// 		2'b01: 
+// 		2'b10: 
+// 		default:
+// 	endcase
 
 
-//
+// // RIESGO DE DATOS POR CARGA
+// // Añadimos una NOP si detectamos el riesgo:
+// // Hazard detection unit detecta el riesgo
+// // Señales de control a 0 durante un ciclo de reloj
+// // Congelamos el PC (enable = 0) durante un ciclo de reloj
+// // Limpiamos los registros de control (clear = 1)
+
 
 endmodule
