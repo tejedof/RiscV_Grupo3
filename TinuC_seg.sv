@@ -251,7 +251,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 		end
 	else
 		begin
-		EX_pc <= ID_pc1; 
+		EX_pc <= ID_pc; 
 		EX_read_data1 <= read_data1;
 		EX_read_data2 <= read_data2;
 		EX_ImmGen <= ImmGen;
