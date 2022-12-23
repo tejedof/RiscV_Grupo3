@@ -145,7 +145,7 @@ always_comb
 
 // ALU control
 always_comb 
-	casex({EX_i30[30],EX_funct3[14:12],EX_AluOP})                  
+	casex({EX_i30[30],EX_funct3[14:12],EX_AluOP})
 		8'bX0000010: 	ALU_control = 5'b00000;	// ADDI
 		8'bX0100010: 	ALU_control = 5'b01000;	// SLTI
 		8'bX0110010: 	ALU_control = 5'b01100;	// SLTIU
