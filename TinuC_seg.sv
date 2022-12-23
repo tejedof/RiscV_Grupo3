@@ -145,7 +145,7 @@ always_comb
 
 // ALU control
 always_comb 
-	casex({EX_i30[30],EX_funct3[14:12],EX_AluOP})
+	casex({EX_i30,EX_funct3,EX_AluOP})
 		8'bX0000010: 	ALU_control = 5'b00000;	// ADDI
 		8'bX0100010: 	ALU_control = 5'b01000;	// SLTI
 		8'bX0110010: 	ALU_control = 5'b01100;	// SLTIU
@@ -202,12 +202,12 @@ assign write_data = WB_MemtoReg? WB_ddata_r : WB_ALU_result;
 assign iaddr = PC[11:2];
 assign d_rw = MEM_MemWrite;
 assign ddata_w = MEM_read_data2;
-assign daddr = MEM_ALU_result;
+assign daddr = MEM_ALU_result[9:0];
 
 
 // SEGMENTACIÓN
 //Banco 1 IF/ID
-logic [31:0] ID_PC, ID_instruction // Salida del PC y de las Instrucciones.
+logic [31:0] ID_PC, ID_instruction; // Salida del PC y de las Instrucciones.
 
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
@@ -223,8 +223,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 
 
 //Banco 2 ID/EX
-logic [31:0] EX_read_data1, EX_read_data2, EX_ImmGen;
-logic [9:0] EX_PC;
+logic [31:0] EX_PC, EX_read_data1, EX_read_data2, EX_ImmGen;
 logic [4:0] EX_rd;
 logic [3:0] EX_AluOP;
 logic [2:0] EX_funct3, EX_AuipcLui;
@@ -282,7 +281,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 		MEM_ALU_result <= '0;
 		MEM_read_data2 <= '0;
 		MEM_rd <= '0;
-		MEM_Branch <= '0
+		MEM_Branch <= '0;
 		MEM_MemWrite <= '0;
 		MEM_MemRead <= '0;
 		MEM_MemtoReg <= '0;
@@ -295,7 +294,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 		MEM_ALU_result <= ALU_result;
 		MEM_read_data2 <= EX_read_data2;
 		MEM_rd <= EX_rd;
-		MEM_Branch <= EX_Branch
+		MEM_Branch <= EX_Branch;
 		MEM_MemWrite <= EX_MemWrite;
 		MEM_MemRead <= EX_MemRead;
 		MEM_MemtoReg <= EX_MemtoReg;
