@@ -327,16 +327,4 @@ always_ff @(posedge CLK, negedge RESET_N)
 		end
 
 
-// Registros con enable y clear (reset síncrono)
-// Incluir las instrucciones SLLI, SRLI, SRAI, SLL, SRL, SRA, JAL, JALR, BLT, BLTU, BGE, BGEU.
-
-
-/* 
-PREGUNTAS
-- Implementación del clear
-- MUX del JAL/JALR
-- Instrucciones signed y unsigned
- */
-
-
 endmodule
