@@ -14,7 +14,7 @@ logic [31:0] ALU_result, read_data1, read_data2, PC, next_PC, A, B, ImmGen, Add,
 logic [4:0] ALU_control;
 logic [3:0] ALUOp;
 logic [1:0] AuipcLui;
-logic Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite, PCSrc, zero;
+logic Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite, PCSrc, zero, PC_Write;
 
 
 // PC
@@ -26,7 +26,7 @@ assign next_PC = PCSrc? MEM_Sum : Add;
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
 		PC <= 0;
-	else 
+	else if (PC_Write)
 		PC <= next_PC;
 
 
@@ -62,7 +62,7 @@ always_comb
 	case(ID_instruction[6:0]) // Opcode
 		7'b0110011:	begin   // R-type (registro)
 						Branch = 1'b0;		// Salto
-						MemRead = 1'b0;	// Enable lectura RAM (no se utiliza por el momento)
+						MemRead = 1'b0;		// Enable lectura RAM (no se utiliza por el momento)
 						MemtoReg = 1'b0;	// Decide qué se escribe en registros
 						ALUOp = 4'b0110;	// Operación ALU
 						MemWrite = 1'b0;	// Enable escritura RAM
@@ -208,14 +208,14 @@ assign daddr = MEM_ALU_result[9:0];
 // SEGMENTACIÓN
 //Banco 1 IF/ID
 logic [31:0] ID_PC, ID_instruction; // Salida del PC y de las Instrucciones.
-
+logic ID_Write;
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
 		begin
 		ID_PC <= '0;
 		ID_instruction <= '0;
 		end
-	else
+	else if (ID_Write)
 		begin
 		ID_PC <= PC; 
 		ID_instruction <= idata;
@@ -228,6 +228,10 @@ logic [4:0] EX_rd;
 logic [3:0] EX_AluOP;
 logic [2:0] EX_funct3, EX_AuipcLui;
 logic EX_i30, EX_AluSrc, EX_Branch, EX_MemWrite, EX_MemRead, EX_MemtoReg, EX_RegWrite;
+// Señales para el control de riesgo por carga
+logic [3:0] ALUOp_mux;
+logic [1:0] AuipcLui_mux;
+logic Branch_mux, MemRead_mux, MemtoReg_mux, MemWrite_mux, ALUSrc_mux, RegWrite_mux;
 
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
@@ -261,14 +265,14 @@ always_ff @(posedge CLK, negedge RESET_N)
 		EX_i30 <= ID_instruction[30];
 		EX_funct3 <= ID_instruction[14:12];
 		EX_rd <= ID_instruction[11:7];
-		EX_AluOP <= ALUOp;
-		EX_AluSrc <=  ALUSrc;
-		EX_Branch <= Branch;
-		EX_MemWrite <= MemWrite;
-		EX_MemRead <= MemRead;
-		EX_AuipcLui <= AuipcLui;
-		EX_MemtoReg <= MemtoReg;
-		EX_RegWrite <= RegWrite;
+		EX_AluOP <= ALUOp_mux;		// Las señales de control provienen ahora de un mux de control de riesgo por carga
+		EX_AluSrc <=  ALUSrc_mux;
+		EX_Branch <= Branch_mux;
+		EX_MemWrite <= MemWrite_mux;
+		EX_MemRead <= MemRead_mux;
+		EX_AuipcLui <= AuipcLui_mux;
+		EX_MemtoReg <= MemtoReg_mux;
+		EX_RegWrite <= RegWrite_mux;
 		end
 
 
@@ -378,10 +382,42 @@ always_comb
 // Hazard detection unit
 always_comb
 	if (EX_MemRead & (EX_rd == ID_instruction[19:15]) | (EX_rd == ID_instruction[24:20]))
-// Añadimos una NOP si detectamos el riesgo:
-// Hazard detection unit detecta el riesgo
-// Señales de control a 0 durante un ciclo de reloj
-// Congelamos el PC (enable = 0) durante un ciclo de reloj
-// Limpiamos los registros de control (clear = 1)
+		begin
+		ID_Write <= 1'b0;	// Añadimos una NOP si detectamos el riesgo:
+		PC_Write <= 1'b0;	// Congelamos el PC (enable = 0) durante un ciclo de reloj
+		EX_Clear <= 1'b0;	// Señales de control a 0 durante un ciclo de reloj
+		end
+	else
+		begin
+		ID_Write <= 1'b1;
+		PC_Write <= 1'b1;
+		EX_Clear <= 1'b1;
+		end
+
+// Mux anulación registro ID/EX
+always_comb
+	if(!EX_Clear)
+		begin
+		Branch_mux = 1'b0;
+		MemRead_mux = 1'b0;
+		MemtoReg_mux = 1'b0;
+		ALUOp_mux = 4'b0000;
+		MemWrite_mux = 1'b0;
+		ALUSrc_mux = 1'b0;
+		RegWrite_mux = 1'b0;
+		AuipcLui_mux = 2'b00;
+		end
+	else
+		begin
+		Branch_mux = Branch;
+		MemRead_mux = MemRead;
+		MemtoReg_mux = MemtoReg;
+		ALUOp_mux = ALUOp;
+		MemWrite_mux = MemWrite;
+		ALUSrc_mux = ALUSrc;
+		RegWrite_mux = RegWrite;
+		AuipcLui_mux = AuipcLui;
+		end
+
 
 endmodule
