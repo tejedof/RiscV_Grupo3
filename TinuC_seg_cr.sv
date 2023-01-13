@@ -51,7 +51,7 @@ Registers Registers
 	.reset_n(RESET_N),
 	.read_reg1(ID_instruction[19:15]),
 	.read_reg2(ID_instruction[24:20]),
-	.write_reg(WB_rd), // Tenemos que retrasar también esta señal (ver transparencia 30 de implementación pipelined)
+	.write_reg(WB_rd),
 	.read_data1(read_data1),
 	.read_data2(read_data2)
 );
@@ -174,12 +174,12 @@ always_comb
 	case(EX_AuipcLui)
 		2'b00:	A = EX_PC;
 		2'b01:	A = 0;
-		default:	A = EX_read_data1;
+		default:	A = fw_A;
 	endcase
 
 
 // Mux_B
-assign B = EX_AluSrc? EX_ImmGen : EX_read_data2;
+assign B = EX_AluSrc? EX_ImmGen : fw_B;
 
 
 // ALU
@@ -333,16 +333,8 @@ always_ff @(posedge CLK, negedge RESET_N)
 // Incluir las instrucciones SLLI, SRLI, SRAI, SLL, SRL, SRA, JAL, JALR, BLT, BLTU, BGE, BGEU.
 
 
-/* 
-PREGUNTAS
-- Implementación del clear
-- MUX del JAL/JALR
-- Instrucciones signed y unsigned
-- Entrega fase3
-*/
-
-
 // CONTROL DE RIESGOS
+
 // DATA  FORWARDING
 // Forwarding unit
 always_comb	// Forward A
@@ -383,11 +375,13 @@ always_comb
 
 
 // RIESGO DE DATOS POR CARGA
+// Hazard detection unit
+always_comb
+	if (EX_MemRead & (EX_rd == ID_instruction[19:15]) | (EX_rd == ID_instruction[24:20]))
 // Añadimos una NOP si detectamos el riesgo:
 // Hazard detection unit detecta el riesgo
 // Señales de control a 0 durante un ciclo de reloj
 // Congelamos el PC (enable = 0) durante un ciclo de reloj
 // Limpiamos los registros de control (clear = 1)
-
 
 endmodule
