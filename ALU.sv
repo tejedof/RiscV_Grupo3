@@ -10,19 +10,22 @@ output logic [31:0] ALU_result
 
 always_comb 
 	case(ALU_control)
-		5'b00000: ALU_result = A + B; 
+		5'b00000: ALU_result = A + B;    // ADD && JAL && JALR
 		5'b00010: ALU_result = A - B;
 		5'b00100: ALU_result = A<<B;
-		5'b01000: ALU_result = (A<B)? 32'b1 : 32'b0; //5'b01xxx  BLT 
-		5'b01100: ALU_result = (A<B)? 32'b0 : 32'b1; //5'b01xxx BLTU 
+		5'b01000: ALU_result = ($signed(A)<$signed(B))? 32'b0 : 32'b1; //5'b01xxx       BLT
+		5'b01100: ALU_result =  (A<B)? 32'b0 : 32'b1; //5'b01xxx  BLTU
 		5'b10000: ALU_result = A ^ B;
 		5'b10100: ALU_result = A>>B; //5'b101xx
 		5'b10110: ALU_result = A>>B; //5'b101xx
 		5'b11000: ALU_result = A | B; 
-		5'b11010: ALU_result = (A>=B)? 32'b0 : 32'b1; //5'b11x10 BGE
+		5'b11010: ALU_result = ($signed(A)>=$signed(B))? 32'b0 : 32'b1; //5'b11x10      BGE
 		5'b11100: ALU_result = A & B;
-		5'b11110: ALU_result = (A>=B)? 32'b0 : 32'b1;//5'b11x10
-		5'b11111: ALU_result = A + B; 
+		5'b11110: ALU_result = (A>=B)? 32'b0 : 32'b1;//5'b11x10         //BGEU		
+		5'b11111: ALU_result = A + B;	
+		5'b00100: ALU_result = A << B;                                  //SLLI && SLL
+		5'b10100: ALU_result = A >> B;                                  //SRLI && SRL
+		5'b10110: ALU_result = A >>> B;                                 //SRAI && SRA
 		default:  ALU_result = 32'b0;
 	endcase
 
