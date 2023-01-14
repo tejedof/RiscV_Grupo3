@@ -2,10 +2,10 @@ module TinuC_seg
 
 (
 input CLK, RESET_N,				// Reloj y reset asíncrono
-input [31:0] idata, ddata_r,	// Bus de datos de lectura ROM y RAM
-output [31:0] ddata_w,			// Bus de datos de escritura RAM
-output [9:0] iaddr, daddr,		// Bus de direcciones ROM y RAM
-output d_rw						// Enable escritura RAM
+input [31:0] idata, ddata_r,	// Buses de datos de lectura de memorias de instrucciones y datos
+output [31:0] ddata_w,			// Bus de datos de escritura memoria de datos
+output [9:0] iaddr, daddr,		// Buses de direcciones de memorias de instrucciones y datos
+output d_rw						// Enable escritura de memoria de datos
 );
 
 
@@ -26,18 +26,18 @@ assign next_PC = PCSrc? MEM_Sum : Add;
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N)
 		PC <= 0;
-	else if (PC_Write)
+	else if (PC_Write)	// El PC se detiene un ciclo si detectamos un riesgo de datos por carga
 		PC <= next_PC;
 
 
 // Generador de inmediato
 always_comb
-	casex(ID_instruction[6:0]) // Opcode
-		7'b0010011: ImmGen = {{21{ID_instruction[31]}},ID_instruction[30:25],ID_instruction[24:21], ID_instruction[20]};		// I-type
-		7'b0100011:	ImmGen = {{21{ID_instruction[31]}},ID_instruction[30:25],ID_instruction[11:8],ID_instruction[7]};			// S-type
-		7'b1100011:	ImmGen = {{20{ID_instruction[31]}},ID_instruction[7],ID_instruction[30:25], ID_instruction[11:8],1'b0};	// B-type
-		7'b0X10111: ImmGen = {ID_instruction[31:12],12'b0};													// U-type
-		7'b110X111: ImmGen = {{12{ID_instruction[31]}},ID_instruction[19:12],ID_instruction[20],ID_instruction[30:21],1'b0};	// J-type
+	casex(ID_idata[6:0]) // Opcode
+		7'b0010011: ImmGen = {{21{ID_idata[31]}},ID_idata[30:25],ID_idata[24:21], ID_idata[20]};		// I-type
+		7'b0100011:	ImmGen = {{21{ID_idata[31]}},ID_idata[30:25],ID_idata[11:8],ID_idata[7]};			// S-type
+		7'b1100011:	ImmGen = {{20{ID_idata[31]}},ID_idata[7],ID_idata[30:25], ID_idata[11:8],1'b0};		// B-type
+		7'b0X10111: ImmGen = {ID_idata[31:12],12'b0};													// U-type
+		7'b110X111: ImmGen = {{12{ID_idata[31]}},ID_idata[19:12],ID_idata[20],ID_idata[30:21],1'b0};	// J-type
 		default: ImmGen = 32'b0;
 	endcase
 
@@ -45,102 +45,113 @@ always_comb
 // Registros
 Registers Registers 
 (
-	.write_data(write_data),
-	.wren(WB_RegWrite),
-	.clock(CLK),
-	.reset_n(RESET_N),
-	.read_reg1(ID_instruction[19:15]),
-	.read_reg2(ID_instruction[24:20]),
-	.write_reg(WB_rd),
-	.read_data1(read_data1),
-	.read_data2(read_data2)
+	.write_data(write_data),		// Dato que se escribe en la dirección de escritura
+	.wren(WB_RegWrite),				// Enable de escritura
+	.clock(CLK),					// Reloj
+	.reset_n(RESET_N),				// Reset activo a nivel bajo asíncrono
+	.read_reg1(ID_idata[19:15]),	// Dirección de lectura del primer registro
+	.read_reg2(ID_idata[24:20]),	// Dirección de lectura del segundo registro
+	.write_reg(WB_rd),				// Dirección de escritura
+	.read_data1(read_data1),		// Dato en la dirección de lectura del primer registro
+	.read_data2(read_data2)			// Dato en la dirección de lectura del segundo registro
 );
 
 
 // Control
 always_comb
-	case(ID_instruction[6:0]) // Opcode
-		7'b0110011:	begin   // R-type (registro)
-						Branch = 1'b0;		// Salto
-						MemRead = 1'b0;		// Enable lectura RAM (no se utiliza por el momento)
-						MemtoReg = 1'b0;	// Decide qué se escribe en registros
-						ALUOp = 4'b0110;	// Operación ALU
-						MemWrite = 1'b0;	// Enable escritura RAM
-						ALUSrc = 1'b0;		// Selector MUX B ALU
-						RegWrite = 1'b1;	// Enable escritura registros
-						AuipcLui = 2'b10;	// Selector
-						end
-		7'b0010011:	begin   // I-type (inmediatos)
-						Branch = 1'b0;
-						MemRead = 1'b0;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0010;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b1;
-						RegWrite = 1'b1;
-						AuipcLui = 2'b10;
-						end
-		7'b0000011:	begin   // L-type (carga)
-						Branch = 1'b0;
-						MemRead = 1'b1;
-						MemtoReg = 1'b1;
-						ALUOp = 4'b0000;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b1;
-						RegWrite = 1'b1;
-						AuipcLui = 2'b10;
-						end
-		7'b0100011:	begin   // S-type (almacenamiento)
-						Branch = 1'b0;
-						MemRead = 1'b0;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0100;
-						MemWrite = 1'b1;
-						ALUSrc = 1'b1;
-						RegWrite = 1'b0;
-						AuipcLui = 2'b10;
-						end
-		7'b1100011: begin   // B-type (salto condicional)
-						Branch = 1'b1;
-						MemRead = 1'b0;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b1100;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b0;
-						RegWrite = 1'b0;
-						AuipcLui = 2'b10;
-						end
-		7'b0110111: begin   // LUI
-						Branch = 1'b0;
-						MemRead = 1'b1;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0111;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b1;
-						RegWrite = 1'b1;
-						AuipcLui = 2'b01;
-						end
-		7'b0010111: begin   // AUIPC
-						Branch = 1'b0;
-						MemRead = 1'b1;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0011;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b0;
-						RegWrite = 1'b1;
-						AuipcLui = 2'b00;
-						end
-		default:		begin
-						Branch = 1'b0;
-						MemRead = 1'b0;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0000;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b0;
-						RegWrite = 1'b0;
-						AuipcLui = 2'b00;
-						end
-	endcase
+	if (!EX_Clear) begin	// Implementa el mux de anulación de los registros de control de ID/EX	
+		Branch = 1'b0;
+		MemRead = 1'b0;
+		MemtoReg = 1'b0;
+		ALUOp = 4'b0010;
+		MemWrite = 1'b0;
+		ALUSrc = 1'b1;
+		RegWrite = 1'b1;
+		AuipcLui = 2'b10;
+	end
+	else					// Operación normal
+		case(ID_idata[6:0]) // Opcode
+			7'b0110011:	begin   // R-type (registro)
+				Branch = 1'b0;		// Salto
+				MemRead = 1'b0;		// Enable lectura RAM
+				MemtoReg = 1'b0;	// Decide qué se escribe en registros
+				ALUOp = 4'b0110;	// Operación ALU
+				MemWrite = 1'b0;	// Enable escritura RAM
+				ALUSrc = 1'b0;		// Selector MUX B ALU
+				RegWrite = 1'b1;	// Enable escritura registros
+				AuipcLui = 2'b10;	// Selector
+			end
+			7'b0010011:	begin   // I-type (inmediatos)
+				Branch = 1'b0;
+				MemRead = 1'b0;
+				MemtoReg = 1'b0;
+				ALUOp = 4'b0010;
+				MemWrite = 1'b0;
+				ALUSrc = 1'b1;
+				RegWrite = 1'b1;
+				AuipcLui = 2'b10;
+			end
+			7'b0000011:	begin   // L-type (carga)
+				Branch = 1'b0;
+				MemRead = 1'b1;
+				MemtoReg = 1'b1;
+				ALUOp = 4'b0000;
+				MemWrite = 1'b0;
+				ALUSrc = 1'b1;
+				RegWrite = 1'b1;
+				AuipcLui = 2'b10;
+			end
+			7'b0100011:	begin   // S-type (almacenamiento)
+				Branch = 1'b0;
+				MemRead = 1'b0;
+				MemtoReg = 1'b0;
+				ALUOp = 4'b0100;
+				MemWrite = 1'b1;
+				ALUSrc = 1'b1;
+				RegWrite = 1'b0;
+				AuipcLui = 2'b10;
+			end
+			7'b1100011: begin   // B-type (salto condicional)
+				Branch = 1'b1;
+				MemRead = 1'b0;
+				MemtoReg = 1'b0;
+				ALUOp = 4'b1100;
+				MemWrite = 1'b0;
+				ALUSrc = 1'b0;
+				RegWrite = 1'b0;
+				AuipcLui = 2'b10;
+			end
+			7'b0110111: begin   // LUI
+				Branch = 1'b0;
+				MemRead = 1'b1;
+				MemtoReg = 1'b0;
+				ALUOp = 4'b0111;
+				MemWrite = 1'b0;
+				ALUSrc = 1'b1;
+				RegWrite = 1'b1;
+				AuipcLui = 2'b01;
+			end
+			7'b0010111: begin   // AUIPC
+				Branch = 1'b0;
+				MemRead = 1'b1;
+				MemtoReg = 1'b0;
+				ALUOp = 4'b0011;
+				MemWrite = 1'b0;
+				ALUSrc = 1'b0;
+				RegWrite = 1'b1;
+				AuipcLui = 2'b00;
+			end
+			default: begin
+				Branch = 1'b0;
+				MemRead = 1'b0;
+				MemtoReg = 1'b0;
+				ALUOp = 4'b0000;
+				MemWrite = 1'b0;
+				ALUSrc = 1'b0;
+				RegWrite = 1'b0;
+				AuipcLui = 2'b00;
+			end
+		endcase
 
 
 // ALU control
@@ -207,19 +218,17 @@ assign daddr = MEM_ALU_result[9:0];
 
 // SEGMENTACIÓN
 //Banco 1 IF/ID
-logic [31:0] ID_PC, ID_instruction; // Salida del PC y de las Instrucciones.
+logic [31:0] ID_PC, ID_idata; // Salida del PC y de las Instrucciones.
 logic ID_Write;
 always_ff @(posedge CLK, negedge RESET_N)
-	if (!RESET_N)
-		begin
+	if (!RESET_N) begin
 		ID_PC <= '0;
-		ID_instruction <= '0;
-		end
-	else if (ID_Write)
-		begin
+		ID_idata <= '0;
+	end
+	else if (ID_Write) begin
 		ID_PC <= PC; 
-		ID_instruction <= idata;
-		end
+		ID_idata <= idata;
+	end
 
 
 //Banco 2 ID/EX
@@ -228,14 +237,9 @@ logic [4:0] EX_rd;
 logic [3:0] EX_AluOP;
 logic [2:0] EX_funct3, EX_AuipcLui;
 logic EX_i30, EX_AluSrc, EX_Branch, EX_MemWrite, EX_MemRead, EX_MemtoReg, EX_RegWrite;
-// Señales para el control de riesgo por carga
-logic [3:0] ALUOp_mux;
-logic [1:0] AuipcLui_mux;
-logic Branch_mux, MemRead_mux, MemtoReg_mux, MemWrite_mux, ALUSrc_mux, RegWrite_mux;
 
 always_ff @(posedge CLK, negedge RESET_N)
-	if (!RESET_N)
-		begin
+	if (!RESET_N) begin
 		EX_PC <= '0;
 		EX_read_reg1 <= '0;
 		EX_read_reg1 <= '0;
@@ -253,27 +257,26 @@ always_ff @(posedge CLK, negedge RESET_N)
 		EX_AuipcLui <= '0;
 		EX_MemtoReg <= '0;
 		EX_RegWrite <= '0;
-		end
-	else
-		begin
+	end
+	else begin
 		EX_PC <= ID_PC;
-		EX_read_reg1 <= ID_instruction[19:15];
-		EX_read_reg1 <= ID_instruction[24:20];
+		EX_read_reg1 <= ID_idata[19:15];
+		EX_read_reg1 <= ID_idata[24:20];
 		EX_read_data1 <= read_data1;
 		EX_read_data2 <= read_data2;
 		EX_ImmGen <= ImmGen;
-		EX_i30 <= ID_instruction[30];
-		EX_funct3 <= ID_instruction[14:12];
-		EX_rd <= ID_instruction[11:7];
-		EX_AluOP <= ALUOp_mux;		// Las señales de control provienen ahora de un mux de control de riesgo por carga
-		EX_AluSrc <=  ALUSrc_mux;
-		EX_Branch <= Branch_mux;
-		EX_MemWrite <= MemWrite_mux;
-		EX_MemRead <= MemRead_mux;
-		EX_AuipcLui <= AuipcLui_mux;
-		EX_MemtoReg <= MemtoReg_mux;
-		EX_RegWrite <= RegWrite_mux;
-		end
+		EX_i30 <= ID_idata[30];
+		EX_funct3 <= ID_idata[14:12];
+		EX_rd <= ID_idata[11:7];
+		EX_AluOP <= ALUOp;		// Estas señales de control pueden ser anuladas por la hazard unit
+		EX_AluSrc <=  ALUSrc;
+		EX_Branch <= Branch;
+		EX_MemWrite <= MemWrite;
+		EX_MemRead <= MemRead;
+		EX_AuipcLui <= AuipcLui;
+		EX_MemtoReg <= MemtoReg;
+		EX_RegWrite <= RegWrite;
+	end
 
 
 //Banco 3 EX/MEM
@@ -282,8 +285,7 @@ logic [4:0] MEM_rd;
 logic MEM_zero, MEM_Branch, MEM_MemWrite, MEM_MemRead, MEM_MemtoReg, MEM_RegWrite;
 
 always_ff @(posedge CLK, negedge RESET_N)
-	if (!RESET_N)
-		begin
+	if (!RESET_N) begin
 		MEM_Sum <= '0;
 		MEM_zero <= '0;
 		MEM_ALU_result <= '0;
@@ -294,9 +296,8 @@ always_ff @(posedge CLK, negedge RESET_N)
 		MEM_MemRead <= '0;
 		MEM_MemtoReg <= '0;
 		MEM_RegWrite <= '0;
-		end
-	else
-		begin
+	end
+	else begin
 		MEM_Sum <= Sum;
 		MEM_zero <= zero;
 		MEM_ALU_result <= ALU_result;
@@ -307,7 +308,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 		MEM_MemRead <= EX_MemRead;
 		MEM_MemtoReg <= EX_MemtoReg;
 		MEM_RegWrite <= EX_RegWrite;
-		end
+	end
 
 
 //Banco 4 MEM/WB
@@ -316,22 +317,20 @@ logic [4:0] WB_rd;
 logic WB_MemtoReg, WB_RegWrite;
 
 always_ff @(posedge CLK, negedge RESET_N)
-	if (!RESET_N)
-		begin
+	if (!RESET_N) begin
 		WB_MemtoReg <= '0;
 		WB_ddata_r <= '0;
 		WB_ALU_result <= '0;
 		WB_RegWrite <= '0;
 		WB_rd <= '0;
-		end
-	else
-		begin
+	end
+	else begin
 		WB_MemtoReg <= MEM_MemtoReg;
 		WB_ddata_r <= ddata_r;
 		WB_ALU_result <= MEM_ALU_result;
 		WB_RegWrite <= MEM_RegWrite;
 		WB_rd <= MEM_rd;
-		end
+	end
 
 // Registros con enable y clear (reset síncrono)
 // Incluir las instrucciones SLLI, SRLI, SRAI, SLL, SRL, SRA, JAL, JALR, BLT, BLTU, BGE, BGEU.
@@ -380,44 +379,17 @@ always_comb
 
 // RIESGO DE DATOS POR CARGA
 // Hazard detection unit
-always_comb
-	if (EX_MemRead & (EX_rd == ID_instruction[19:15]) | (EX_rd == ID_instruction[24:20]))
-		begin
-		ID_Write <= 1'b0;	// Añadimos una NOP si detectamos el riesgo:
-		PC_Write <= 1'b0;	// Congelamos el PC (enable = 0) durante un ciclo de reloj
-		EX_Clear <= 1'b0;	// Señales de control a 0 durante un ciclo de reloj
-		end
-	else
-		begin
+always_comb	
+	if (EX_MemRead & (EX_rd == ID_idata[19:15]) | (EX_rd == ID_idata[24:20])) begin
+		ID_Write <= 1'b0;	// Congelamos el banco de registros IF/ID
+		PC_Write <= 1'b0;	// Congelamos el PC
+		EX_Clear <= 1'b0;	// Anulamos señales de control de la etapa ID/EX
+	end
+	else begin	// Operación normal
 		ID_Write <= 1'b1;
 		PC_Write <= 1'b1;
 		EX_Clear <= 1'b1;
-		end
-
-// Mux anulación registro ID/EX
-always_comb
-	if(!EX_Clear)
-		begin
-		Branch_mux = 1'b0;
-		MemRead_mux = 1'b0;
-		MemtoReg_mux = 1'b0;
-		ALUOp_mux = 4'b0000;
-		MemWrite_mux = 1'b0;
-		ALUSrc_mux = 1'b0;
-		RegWrite_mux = 1'b0;
-		AuipcLui_mux = 2'b00;
-		end
-	else
-		begin
-		Branch_mux = Branch;
-		MemRead_mux = MemRead;
-		MemtoReg_mux = MemtoReg;
-		ALUOp_mux = ALUOp;
-		MemWrite_mux = MemWrite;
-		ALUSrc_mux = ALUSrc;
-		RegWrite_mux = RegWrite;
-		AuipcLui_mux = AuipcLui;
-		end
+	end
 
 
 endmodule

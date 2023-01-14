@@ -2,10 +2,10 @@ module TinuC
 
 (
 input CLK, RESET_N,				// Reloj y reset asíncrono
-input [31:0] idata, ddata_r,	// Bus de datos de lectura ROM y RAM
-output [31:0] ddata_w,			// Bus de datos de escritura RAM
-output [9:0] iaddr, daddr,		// Bus de direcciones ROM y RAM
-output d_rw							// Enable escritura RAM
+input [31:0] idata, ddata_r,	// Buses de datos de lectura de memorias de instrucciones y datos
+output [31:0] ddata_w,			// Bus de datos de escritura memoria de datos
+output [9:0] iaddr, daddr,		// Buses de direcciones de memorias de instrucciones y datos
+output d_rw						// Enable escritura de memoria de datos
 );
 
 
@@ -35,8 +35,8 @@ always_comb
 	casex(idata[6:0]) // Opcode
 		7'b00X0011: ImmGen = {{21{idata[31]}},idata[30:25],idata[24:21], idata[20]};		// I-type
 		7'b0100011:	ImmGen = {{21{idata[31]}},idata[30:25],idata[11:8],idata[7]};			// S-type
-		7'b1100011:	ImmGen = {{20{idata[31]}},idata[7],idata[30:25], idata[11:8],1'b0};	// B-type
-		7'b0X10111: ImmGen = {idata[31:12],12'b0};													// U-type
+		7'b1100011:	ImmGen = {{20{idata[31]}},idata[7],idata[30:25], idata[11:8],1'b0};		// B-type
+		7'b0X10111: ImmGen = {idata[31:12],12'b0};											// U-type
 		7'b110X111: ImmGen = {{12{idata[31]}},idata[19:12],idata[20],idata[30:21],1'b0};	// J-type
 		default: ImmGen = 32'b0;
 	endcase
@@ -45,101 +45,101 @@ always_comb
 // Registros
 Registers Registers 
 (
-	.write_data(write_data),
-	.wren(RegWrite),
-	.clock(CLK),
-	.reset_n(RESET_N),
-	.read_reg1(idata[19:15]),
-	.read_reg2(idata[24:20]),
-	.write_reg(idata[11:7]),
-	.read_data1(read_data1),
-	.read_data2(read_data2)
+	.write_data(write_data),	// Dato que se escribe en la dirección de escritura
+	.wren(RegWrite),			// Enable de escritura
+	.clock(CLK),				// Reloj
+	.reset_n(RESET_N),			// Reset activo a nivel bajo asíncrono
+	.read_reg1(idata[19:15]),	// Dirección de lectura del primer registro
+	.read_reg2(idata[24:20]),	// Dirección de lectura del segundo registro
+	.write_reg(idata[11:7]),	// Dirección de escritura
+	.read_data1(read_data1),	// Dato en la dirección de lectura del primer registro
+	.read_data2(read_data2)		// Dato en la dirección de lectura del segundo registro
 );
 
 
 // Control
 always_comb
-	case(idata[6:0]) // Opcode
+	case(ID_idata[6:0]) // Opcode
 		7'b0110011:	begin   // R-type (registro)
-						Branch = 1'b0;		// Salto
-						MemRead = 1'b0;	// Enable lectura RAM (no se utiliza por el momento)
-						MemtoReg = 1'b0;	// Decide qué se escribe en registros
-						ALUOp = 4'b0110;	// Operación ALU
-						MemWrite = 1'b0;	// Enable escritura RAM
-						ALUSrc = 1'b0;		// Selector MUX B ALU
-						RegWrite = 1'b1;	// Enable escritura registros
-						AuipcLui = 2'b10;	// Selector
-						end
+			Branch = 1'b0;		// Salto
+			MemRead = 1'b0;		// Enable lectura RAM (no se utiliza por el momento)
+			MemtoReg = 1'b0;	// Decide qué se escribe en registros
+			ALUOp = 4'b0110;	// Operación ALU
+			MemWrite = 1'b0;	// Enable escritura RAM
+			ALUSrc = 1'b0;		// Selector MUX B ALU
+			RegWrite = 1'b1;	// Enable escritura registros
+			AuipcLui = 2'b10;	// Selector
+		end
 		7'b0010011:	begin   // I-type (inmediatos)
-						Branch = 1'b0;
-						MemRead = 1'b0;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0010;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b1;
-						RegWrite = 1'b1;
-						AuipcLui = 2'b10;
-						end
+			Branch = 1'b0;
+			MemRead = 1'b0;
+			MemtoReg = 1'b0;
+			ALUOp = 4'b0010;
+			MemWrite = 1'b0;
+			ALUSrc = 1'b1;
+			RegWrite = 1'b1;
+			AuipcLui = 2'b10;
+		end
 		7'b0000011:	begin   // L-type (carga)
-						Branch = 1'b0;
-						MemRead = 1'b1;
-						MemtoReg = 1'b1;
-						ALUOp = 4'b0000;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b1;
-						RegWrite = 1'b1;
-						AuipcLui = 2'b10;
-						end
+			Branch = 1'b0;
+			MemRead = 1'b1;
+			MemtoReg = 1'b1;
+			ALUOp = 4'b0000;
+			MemWrite = 1'b0;
+			ALUSrc = 1'b1;
+			RegWrite = 1'b1;
+			AuipcLui = 2'b10;
+		end
 		7'b0100011:	begin   // S-type (almacenamiento)
-						Branch = 1'b0;
-						MemRead = 1'b0;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0100;
-						MemWrite = 1'b1;
-						ALUSrc = 1'b1;
-						RegWrite = 1'b0;
-						AuipcLui = 2'b10;
-						end
+			Branch = 1'b0;
+			MemRead = 1'b0;
+			MemtoReg = 1'b0;
+			ALUOp = 4'b0100;
+			MemWrite = 1'b1;
+			ALUSrc = 1'b1;
+			RegWrite = 1'b0;
+			AuipcLui = 2'b10;
+		end
 		7'b1100011: begin   // B-type (salto condicional)
-						Branch = 1'b1;
-						MemRead = 1'b0;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b1100;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b0;
-						RegWrite = 1'b0;
-						AuipcLui = 2'b10;
-						end
+			Branch = 1'b1;
+			MemRead = 1'b0;
+			MemtoReg = 1'b0;
+			ALUOp = 4'b1100;
+			MemWrite = 1'b0;
+			ALUSrc = 1'b0;
+			RegWrite = 1'b0;
+			AuipcLui = 2'b10;
+		end
 		7'b0110111: begin   // LUI
-						Branch = 1'b0;
-						MemRead = 1'b1;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0111;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b1;
-						RegWrite = 1'b1;
-						AuipcLui = 2'b01;
-						end
+			Branch = 1'b0;
+			MemRead = 1'b1;
+			MemtoReg = 1'b0;
+			ALUOp = 4'b0111;
+			MemWrite = 1'b0;
+			ALUSrc = 1'b1;
+			RegWrite = 1'b1;
+			AuipcLui = 2'b01;
+		end
 		7'b0010111: begin   // AUIPC
-						Branch = 1'b0;
-						MemRead = 1'b1;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0011;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b0;
-						RegWrite = 1'b1;
-						AuipcLui = 2'b00;
-						end
-		default:		begin
-						Branch = 1'b0;
-						MemRead = 1'b0;
-						MemtoReg = 1'b0;
-						ALUOp = 4'b0000;
-						MemWrite = 1'b0;
-						ALUSrc = 1'b0;
-						RegWrite = 1'b0;
-						AuipcLui = 2'b00;
-						end
+			Branch = 1'b0;
+			MemRead = 1'b1;
+			MemtoReg = 1'b0;
+			ALUOp = 4'b0011;
+			MemWrite = 1'b0;
+			ALUSrc = 1'b0;
+			RegWrite = 1'b1;
+			AuipcLui = 2'b00;
+		end
+		default: begin
+			Branch = 1'b0;
+			MemRead = 1'b0;
+			MemtoReg = 1'b0;
+			ALUOp = 4'b0000;
+			MemWrite = 1'b0;
+			ALUSrc = 1'b0;
+			RegWrite = 1'b0;
+			AuipcLui = 2'b00;
+		end
 	endcase
 
 
