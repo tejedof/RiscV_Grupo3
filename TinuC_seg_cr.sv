@@ -1,4 +1,4 @@
-module TinuC_seg 
+module TinuC_seg_cr
 
 (
 input CLK, RESET_N,				// Reloj y reset asíncrono
@@ -14,7 +14,7 @@ logic [31:0] ALU_result, read_data1, read_data2, PC, next_PC, A, B, ImmGen, Add,
 logic [4:0] ALU_control;
 logic [3:0] ALUOp;
 logic [1:0] AuipcLui;
-logic Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite, PCSrc, zero, PC_Write;
+logic Branch, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite, PCSrc, zero;
 
 
 // PC
@@ -219,7 +219,6 @@ assign daddr = MEM_ALU_result[9:0];
 // SEGMENTACIÓN
 //Banco 1 IF/ID
 logic [31:0] ID_PC, ID_idata; // Salida del PC y de las Instrucciones.
-logic ID_Write;
 always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N) begin
 		ID_PC <= '0;
@@ -233,7 +232,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 
 //Banco 2 ID/EX
 logic [31:0] EX_PC, EX_read_data1, EX_read_data2, EX_ImmGen;
-logic [4:0] EX_rd;
+logic [4:0] EX_read_reg1, EX_read_reg2, EX_rd;
 logic [3:0] EX_AluOP;
 logic [2:0] EX_funct3, EX_AuipcLui;
 logic EX_i30, EX_AluSrc, EX_Branch, EX_MemWrite, EX_MemRead, EX_MemtoReg, EX_RegWrite;
@@ -340,6 +339,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 
 // DATA  FORWARDING
 // Forwarding unit
+logic [1:0] ForwardA, ForwardB;
 always_comb	// Forward A
 	if(MEM_RegWrite & (MEM_rd != 0) & (MEM_rd == EX_read_reg1))
 		ForwardA = 2'b10;
@@ -379,6 +379,7 @@ always_comb
 
 // RIESGO DE DATOS POR CARGA
 // Hazard detection unit
+logic ID_Write, PC_Write, EX_Clear;
 always_comb	
 	if (EX_MemRead & (EX_rd == ID_idata[19:15]) | (EX_rd == ID_idata[24:20])) begin
 		ID_Write <= 1'b0;	// Congelamos el banco de registros IF/ID

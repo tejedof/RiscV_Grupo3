@@ -59,7 +59,7 @@ Registers Registers
 
 // Control
 always_comb
-	case(ID_idata[6:0]) // Opcode
+	case(idata[6:0]) // Opcode
 		7'b0110011:	begin   // R-type (registro)
 			Branch = 1'b0;		// Salto
 			MemRead = 1'b0;		// Enable lectura RAM (no se utiliza por el momento)
