@@ -63,11 +63,11 @@ always_comb
 		Branch = 1'b0;
 		MemRead = 1'b0;
 		MemtoReg = 1'b0;
-		ALUOp = 4'b0010;
+		ALUOp = 4'b0000;
 		MemWrite = 1'b0;
-		ALUSrc = 1'b1;
-		RegWrite = 1'b1;
-		AuipcLui = 2'b10;
+		ALUSrc = 1'b0;
+		RegWrite = 1'b0;
+		AuipcLui = 2'b00;
 	end
 	else					// Operación normal
 		case(ID_idata[6:0]) // Opcode
@@ -176,6 +176,7 @@ always_comb
 		8'bX0011100: 	ALU_control = 5'b10000;	// BNE
 		8'bX0100000: 	ALU_control = 5'b00000;	// LW
 		8'bX0100100: 	ALU_control = 5'b00000;	// SW
+		8'bXXXX1101: 	ALU_Control = 5'b00000; // JAL
 		default: 	 	ALU_control = 5'b00000;
 	endcase
 
@@ -241,7 +242,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 	if (!RESET_N) begin
 		EX_PC <= '0;
 		EX_read_reg1 <= '0;
-		EX_read_reg1 <= '0;
+		EX_read_reg2 <= '0;
 		EX_read_data1 <= '0;
 		EX_read_data2 <= '0;
 		EX_ImmGen <= '0;
@@ -260,7 +261,7 @@ always_ff @(posedge CLK, negedge RESET_N)
 	else begin
 		EX_PC <= ID_PC;
 		EX_read_reg1 <= ID_idata[19:15];
-		EX_read_reg1 <= ID_idata[24:20];
+		EX_read_reg2 <= ID_idata[24:20];
 		EX_read_data1 <= read_data1;
 		EX_read_data2 <= read_data2;
 		EX_ImmGen <= ImmGen;
@@ -381,7 +382,7 @@ always_comb
 // Hazard detection unit
 logic ID_Write, PC_Write, EX_Clear;
 always_comb	
-	if (EX_MemRead & (EX_rd == ID_idata[19:15]) | (EX_rd == ID_idata[24:20])) begin
+	if (EX_MemRead & ((EX_rd == ID_idata[19:15]) | (EX_rd == ID_idata[24:20]))) begin
 		ID_Write <= 1'b0;	// Congelamos el banco de registros IF/ID
 		PC_Write <= 1'b0;	// Congelamos el PC
 		EX_Clear <= 1'b0;	// Anulamos señales de control de la etapa ID/EX
@@ -391,6 +392,9 @@ always_comb
 		PC_Write <= 1'b1;
 		EX_Clear <= 1'b1;
 	end
+
+
+// RIESGO DE CONTROL
 
 
 endmodule
